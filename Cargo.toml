@@ -1,0 +1,14 @@
+[package]
+name = "links"
+version = "0.1.0"
+edition = "2024"
+description = "A small Mac app for saving links to interesting websites, built with Rune."
+
+[dependencies]
+# Rune is pre-release: pin a `dev` rev (dev is never rewritten). Bump the rev to upgrade.
+rune = { git = "https://github.com/anomalyco/rune", rev = "447774dc10b50314f051307355646808233a3aaa" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+debug = false
