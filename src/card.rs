@@ -200,14 +200,25 @@ pub const BLANK_TOP: f32 = 104.0;
 /// A card in the printer, laid out top first so what's typed shows as soon as it's fed: the
 /// number, `title` and `note` (the fields while typing, plain text once printed), then the
 /// keypad printing as the address comes in, then the category.
-pub fn blank(counter: &str, title: El, note: El, error: Option<&str>, url: &str, category: Option<Category>, strength: f32, ink: &Ink) -> El {
+pub struct Blank<'a> {
+    pub counter: String,
+    pub title: El,
+    pub note: El,
+    pub error: Option<&'a str>,
+    pub url: &'a str,
+    pub category: Option<Category>,
+    pub strength: f32,
+}
+
+pub fn blank(b: Blank, ink: &Ink) -> El {
+    let Blank { counter, title, note, error, url, category, strength } = b;
     let mut top = col()
         .w(W)
         .h(BLANK_TOP)
         .px(PAD)
         .pt(18.0)
         .gap(6.0)
-        .child(text(counter.to_string()).font(TextStyle::new(11.5, 400.0).tracking(0.4)).color(ink.dim))
+        .child(text(counter).font(TextStyle::new(11.5, 400.0).tracking(0.4)).color(ink.dim))
         .child(el().h(2.0))
         .child(title.w(W - 2.0 * PAD))
         .child(note.w(W - 2.0 * PAD));

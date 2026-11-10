@@ -6,11 +6,11 @@
 //! back, and printing pushes it all the way out. The app then swaps it for the saved card,
 //! which flies (`matched`) into its folder. The category keys and PRINT sit on the body.
 
-use rune::{Color, El, Spring, el, row, spacer};
+use rune::{Color, El, Spring, el, row};
 
 use crate::card::{self, Ink};
 
-pub const PW: f32 = 320.0;
+pub const PW: f32 = 336.0;
 /// Room above the slot: enough for the whole card when it's out.
 const PAPER_H: f32 = card::H + 16.0;
 const BODY_H: f32 = 76.0;
@@ -55,17 +55,12 @@ pub fn printer(job: u64, paper: El, visible: f32, keys: El, ink: &Ink) -> El {
 
 /// A key on the printer's body. `lit` glows it; `primary` is the white PRINT key.
 pub fn key(label: El, lit: bool, primary: bool, ink: &Ink) -> El {
-    let k = row().h(30.0).px(10.0).gap(6.0).center().radius(8.0).child(label);
+    let k = row().h(30.0).px(8.0).gap(5.0).center().radius(8.0).child(label);
     if primary {
-        k.px(14.0).fill(ink.glow).shadow(0.0, 14.0, ink.glow.alpha(0.25)).hover(Color::BLACK.alpha(0.08))
+        k.px(12.0).fill(ink.glow).shadow(0.0, 14.0, ink.glow.alpha(0.25)).hover(Color::BLACK.alpha(0.08))
     } else if lit {
         k.fill(ink.glow.alpha(0.08)).border(1.0, ink.glow.alpha(0.45)).shadow(0.0, 12.0, ink.glow.alpha(0.12))
     } else {
         k.fill(ink.bg.alpha(0.5)).border(1.0, ink.line).hover(ink.glow.alpha(0.05))
     }
-}
-
-/// Space between a row of keys and the PRINT key.
-pub fn gap() -> El {
-    spacer()
 }

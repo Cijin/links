@@ -12,7 +12,7 @@ mod shredder;
 mod store;
 
 use rune::tok::type_;
-use rune::{AppSpec, Color, Cx, El, Key, KeyEvent, ScrollSpec, TextEdit, TextStyle, Tx, col, el, row, spacer, text, text_input};
+use rune::{AppSpec, Cx, El, Key, KeyEvent, ScrollSpec, TextEdit, TextStyle, Tx, col, el, row, spacer, text, text_input};
 use card::{Actions, Ink};
 use store::{Category, Link};
 
@@ -193,189 +193,181 @@ fn init_with(links: Vec<Link>) -> State {
     State { links, url, title: TextEdit::new(""), search: TextEdit::new(""), category: None, mode: Mode::Shelf, hovered: None, hot: None, print: Print::Idle, shred: Shred::Idle, job: 0, error: None, persist: true }
 }
 
-const FIELD_TEXT: TextStyle = type_::BODY;
+/// The spacing scale everything sits on.
+const S2: f32 = 8.0;
+const S3: f32 = 12.0;
+const S6: f32 = 24.0;
+const S8: f32 = 32.0;
+/// The window's toolbar, level with the traffic lights; content starts clear of them.
+const TOOLBAR_H: f32 = 52.0;
+const LIGHTS_W: f32 = 84.0;
+const SIDEBAR_W: f32 = printer::PW + 2.0 * S6;
 
-fn input(edit: &TextEdit, key: &'static str, hint: &'static str, ink: &Ink) -> El {
-    text_input(edit, FIELD_TEXT).key(key).single_line().grow(1.0).color(ink.text).placeholder(hint, ink.dim)
-}
-
-fn field(key: &'static str, input: El, ink: &Ink) -> El {
-    el().key(key).w_full().h(40.0).px(14.0).radius(10.0).fill(ink.card).border(1.0, ink.line).center_y().child(input)
-}
-
-/// A toggle: a hairline outline that lights up when picked.
-fn chip(key: String, label: String, on: bool, ink: &Ink, press: impl Fn(&mut State) + 'static) -> El {
-    let c = row()
+/// A small hairline button.
+fn button(key: &'static str, label: &'static str, ink: &Ink, press: impl Fn(&mut State) + 'static) -> El {
+    row()
         .key(key)
         .role("button")
-        .label(label.clone())
-        .checked(on)
-        .h(40.0)
-        .px(16.0)
+        .label(label)
+        .h(30.0)
+        .px(S3)
         .center()
-        .radius(10.0)
+        .radius(8.0)
+        .border(1.0, ink.line)
         .hover(ink.glow.alpha(0.05))
         .on_press(press)
-        .child(text(label).font(TextStyle::new(12.5, 500.0)).color(if on { ink.glow } else { ink.muted }));
-    if on {
-        c.fill(ink.glow.alpha(0.08)).border(1.0, ink.glow.alpha(0.45)).shadow(0.0, 14.0, ink.glow.alpha(0.12))
-    } else {
-        c.fill(ink.card).border(1.0, ink.line)
-    }
+        .child(text(label).font(TextStyle::new(12.0, 500.0)).color(ink.muted))
 }
 
 fn view(s: &State, _: &mut Cx<State>) -> El {
     let ink = Ink::new();
-
-    // The new card's own lines: the address as its title, the note under it.
-    let url = text_input(&s.url, TextStyle::new(20.0, 500.0).lh(26.0).tracking(-0.2))
-        .key("url")
-        .single_line()
+    let toolbar = row()
+        .key("toolbar")
         .w_full()
-        .color(ink.text)
-        .placeholder("Paste a link", ink.dim)
-        .on_edit(|s: &mut State| &mut s.url)
-        .on_input_change(|s: &mut State, _| s.error = None)
-        .on_submit(|s: &mut State, tx| s.add(tx));
-    let title = text_input(&s.title, TextStyle::new(14.0, 400.0).lh(20.0))
-        .key("title")
-        .single_line()
-        .w_full()
-        .color(ink.muted)
-        .placeholder("Add a title or note", ink.dim)
-        .on_edit(|s: &mut State| &mut s.title)
-        .on_submit(|s: &mut State, tx| s.add(tx));
-    let search = input(&s.search, "search", "Search the collection", &ink).on_edit(|s: &mut State| &mut s.search);
-
-    let save = row()
-        .key("add")
-        .role("button")
-        .label("Save")
-        .h(32.0)
-        .px(18.0)
-        .center()
-        .radius(10.0)
-        .fill(ink.glow)
-        .shadow(0.0, 18.0, ink.glow.alpha(0.22))
-        .hover(Color::BLACK.alpha(0.08))
-        .on_press_tx(|s: &mut State, tx: &mut Tx| s.add(tx))
-        .child(text("Save").font(TextStyle::new(13.0, 600.0)).color(ink.bg));
-
-    let mut picks = row().gap(6.0);
-    for c in Category::ALL {
-        let on = s.category == Some(c);
-        // Clicking the picked one again leaves the link uncategorized.
-        picks = picks.child(
-            card::pill(Some(c), false, on, &ink)
-                .key(format!("pick-{}", c.key()))
-                .role("button")
-                .label(c.label())
-                .checked(on)
-                .hover(ink.glow.alpha(0.05))
-                .on_press(move |s: &mut State| s.category = if on { None } else { Some(c) }),
-        );
-    }
-    let fields = col()
-        .key("form")
-        .w_full()
-        .radius(16.0)
-        .fill(ink.card)
-        .border(1.0, ink.line)
-        .shadow(12.0, 32.0, Color::BLACK.alpha(0.5))
+        .h(TOOLBAR_H)
+        .pl(LIGHTS_W)
+        .pr(S6)
+        .gap(S3)
+        .center_y()
+        .child(card::logo(&ink))
+        .child(text("Links").font(TextStyle::new(15.0, 600.0).tracking(-0.1)).color(ink.text))
+        .child(spacer())
         .child(
-            col()
-                .w_full()
-                .px(24.0)
-                .pt(20.0)
-                .pb(18.0)
-                .gap(8.0)
+            row()
+                .key("search-field")
+                .w(260.0)
+                .h(30.0)
+                .px(S3)
+                .radius(8.0)
+                .fill(ink.card)
+                .border(1.0, ink.line)
+                .center_y()
                 .child(
-                    row()
-                        .w_full()
-                        .child(text("NEW CARD").font(TextStyle::new(10.5, 500.0).tracking(1.4)).color(ink.dim))
-                        .child(spacer())
-                        .child(text(format!("{:02} / {:02}", 1, s.links.len() + 1)).font(TextStyle::new(11.5, 400.0).tracking(0.4)).color(ink.dim)),
-                )
-                .child(el().h(10.0))
-                .child(url)
-                .child(title)
-                .child(match s.error {
-                    Some(e) => text(e).key("error").font(type_::LABEL).color(ink.error),
-                    None => el().h(0.0),
-                }),
-        )
-        .child(el().w_full().h(1.0).fill(ink.line))
-        .child(row().w_full().px(16.0).py(12.0).gap(8.0).center_y().child(picks).child(spacer()).child(save));
-    let form = row().key("composer").w_full().gap(32.0).child(printer_view(s, &ink)).child(col().grow(1.0).h(printer::PH).justify_end().child(fields));
-
-    let searching = !s.search.text.trim().is_empty();
-    let body = match s.mode {
-        Mode::Shelf if !searching => shelf(s, &ink),
-        _ => sheet(s, &ink),
-    };
-
-    let count = match s.links.len() {
-        1 => "01 link".to_string(),
-        n => format!("{n:02} links"),
-    };
+                    text_input(&s.search, TextStyle::new(12.5, 400.0))
+                        .key("search")
+                        .single_line()
+                        .grow(1.0)
+                        .color(ink.text)
+                        .placeholder("Search", ink.dim)
+                        .on_edit(|s: &mut State| &mut s.search),
+                ),
+        );
+    let sidebar = col()
+        .key("sidebar")
+        .w(SIDEBAR_W)
+        .h_full()
+        .px(S6)
+        .pb(S8)
+        .justify_end()
+        .child(printer_view(s, &ink));
+    let main = col().key("main").grow(1.0).h_full().min_w(0.0).px(S6).pt(S6).gap(S6).child(section_head(s, &ink)).child(main_body(s, &ink));
     col()
         .key("root")
         .w_full()
         .h_full()
-        .padding(28.0)
-        .gap(18.0)
         .fill(ink.bg)
         .on_paste(|s: &mut State, pasted: &str, _| {
-            // Pasting with no field focused drops the link into the form.
+            // Pasting with no field focused drops the link onto the new card.
             s.url.replace_text(pasted.trim());
             s.url.focused = true;
             s.error = None;
         })
-        .child(
-            row()
-                .w_full()
-                .center_y()
-                .gap(10.0)
-                .child(card::glyph(Some(Category::Vm), 3.0, &ink, 0.8))
-                .child(text("Links").font(TextStyle::new(17.0, 500.0)).color(ink.text))
-                .child(spacer())
-                .child(text(count).key("count").font(TextStyle::new(12.0, 400.0).tracking(0.4)).color(ink.dim)),
-        )
-        .child(form)
-        .child(match s.mode {
-            Mode::Shelf => field("search-field", search, &ink),
-            Mode::Folder(c) => row()
-                .w_full()
-                .gap(8.0)
-                .center_y()
-                .child(chip("back".into(), "← Folders".into(), false, &ink, |s| s.mode = Mode::Shelf))
-                .child(el().w(4.0))
-                .child(card::glyph(c, 3.0, &ink, 0.8))
-                .child(text(folder::name(c)).font(TextStyle::new(16.0, 500.0)).color(ink.text))
-                .child(el().w(8.0))
-                .child(el().grow(1.0).child(field("search-field", search, &ink))),
-        })
-        .child(body)
+        .child(toolbar)
+        .child(el().w_full().h(1.0).fill(ink.line))
+        .child(row().w_full().grow(1.0).min_h(0.0).child(sidebar).child(el().w(1.0).h_full().fill(ink.line)).child(main))
         .child(shredder_view(s, &ink))
+}
+
+/// The title over the main area: Folders, an open folder, or search results.
+fn section_head(s: &State, ink: &Ink) -> El {
+    let title = |t: String| text(t).font(TextStyle::new(22.0, 500.0).tracking(-0.3)).color(ink.text);
+    let count = |n: usize| text(if n == 1 { "1 link".to_string() } else { format!("{n} links") }).font(TextStyle::new(12.5, 400.0)).color(ink.dim);
+    let q = s.search.text.trim();
+    let head = row().key("section").w_full().h(32.0).gap(S3).center_y();
+    match s.mode {
+        _ if !q.is_empty() => head.child(title(format!("Results for “{q}”"))).child(count(s.visible().len())),
+        Mode::Shelf => head.child(title("Folders".into())).child(count(s.links.len())),
+        Mode::Folder(c) => head
+            .child(button("back", "← Folders", ink, |s| s.mode = Mode::Shelf))
+            .child(el().w(S2))
+            .child(card::glyph(c, 3.0, ink, 0.9))
+            .child(title(folder::name(c).into()))
+            .child(count(s.in_folder(c).len())),
+    }
+}
+
+fn main_body(s: &State, ink: &Ink) -> El {
+    let searching = !s.search.text.trim().is_empty();
+    match s.mode {
+        Mode::Shelf if !searching => shelf(s, ink),
+        _ => sheet(s, ink),
+    }
 }
 
 /// The printer with its card: the one being typed, or the one rolling out.
 fn printer_view(s: &State, ink: &Ink) -> El {
+    let counter = format!("{:02} / {:02}", 1, s.links.len() + 1);
+    let mut keys = row().w_full().gap(6.0).center_y();
+    for c in Category::ALL {
+        let on = s.category == Some(c);
+        let label = row().gap(5.0).child(card::glyph(Some(c), 2.0, ink, if on { 1.0 } else { 0.4 })).child(text(c.label()).font(TextStyle::new(11.5, 500.0)).color(if on { ink.glow } else { ink.muted }));
+        // Pressing the lit one again leaves the link uncategorized.
+        keys = keys.child(
+            printer::key(label, on, false, ink)
+                .key(format!("pick-{}", c.key()))
+                .role("button")
+                .label(c.label())
+                .checked(on)
+                .on_press(move |s: &mut State| s.category = if on { None } else { Some(c) }),
+        );
+    }
+    keys = keys.child(spacer()).child(
+        printer::key(text("Print").font(TextStyle::new(12.0, 600.0)).color(ink.bg), false, true, ink)
+            .key("add")
+            .role("button")
+            .label("Print")
+            .on_press_tx(|s: &mut State, tx: &mut Tx| s.add(tx)),
+    );
+    let title_font = TextStyle::new(17.0, 500.0).lh(22.0).tracking(-0.2);
+    let note_font = TextStyle::new(12.5, 400.0).lh(17.0);
     match s.printing() {
         Some(link) => {
-            let face = card::Face { url: &link.url, title: Some(link.name()), when: "just now", n: 0, total: s.links.len() + 1, strength: 1.0, glow_edge: true };
-            let paper = card::proof(&face, link.category, ink).matched(card::flight(link.id));
-            printer::printer(s.job, paper, printer::OUT, true, ink)
+            let note = format!("{} · just now", store::host(&link.url));
+            let paper = card::blank(
+                card::Blank {
+                    counter,
+                    title: text(link.name().to_string()).font(title_font).color(ink.text),
+                    note: text(note).font(note_font).color(ink.muted),
+                    error: None,
+                    url: &link.url,
+                    category: link.category,
+                    strength: 1.0,
+                },
+                ink,
+            )
+            .matched(card::flight(link.id));
+            printer::printer(s.job, paper, printer::OUT, keys, ink)
         }
         None => {
-            let url = s.url.text.trim();
-            let title = s.title.text.trim();
-            let host = store::host(url);
-            let name = if !title.is_empty() { Some(title) } else if !host.is_empty() { Some(host) } else { None };
-            let face = card::Face { url, title: name, when: "printing…", n: 0, total: s.links.len() + 1, strength: 0.6, glow_edge: false };
+            // You type straight onto the card: the address is its title, the note under it.
+            let url = text_input(&s.url, title_font)
+                .key("url")
+                .single_line()
+                .color(ink.text)
+                .placeholder("Paste a link", ink.dim)
+                .on_edit(|s: &mut State| &mut s.url)
+                .on_input_change(|s: &mut State, _| s.error = None)
+                .on_submit(|s: &mut State, tx| s.add(tx));
+            let note = text_input(&s.title, note_font)
+                .key("title")
+                .single_line()
+                .color(ink.muted)
+                .placeholder("Add a title or note", ink.dim)
+                .on_edit(|s: &mut State| &mut s.title)
+                .on_submit(|s: &mut State, tx| s.add(tx));
+            let paper = card::blank(card::Blank { counter, title: url, note, error: s.error, url: s.url.text.trim(), category: s.category, strength: 0.6 }, ink);
             let chars = s.url.text.chars().count() + s.title.text.chars().count();
-            let typing = chars > 0;
-            printer::printer(s.job, card::proof(&face, s.category, ink), printer::feed(chars, s.category.is_some()), typing, ink)
+            printer::printer(s.job, paper, printer::feed(chars, s.category.is_some()), keys, ink)
         }
     }
 }
@@ -408,26 +400,27 @@ fn shelf(s: &State, ink: &Ink) -> El {
     if s.links.iter().any(|l| l.category.is_none()) {
         folders.push(None);
     }
-    let mut shelf = row().key("shelf").w_full().flex_wrap().justify_center().gap(16.0).py(8.0);
+    let mut shelf = row().key("shelf").w_full().flex_wrap().gap(S3);
     for c in folders {
         let links = s.in_folder(c);
         shelf = shelf.child(folder::folder(c, &links, s.hovered == Some(c), ink, &FOLDER_ACTIONS));
     }
-    col().key("shelf-scroll").w_full().grow(1.0).min_h(0.0).child(shelf.scroll(ScrollSpec { stick_bottom: false }).grow(1.0).min_h(0.0))
+    // The wrapping row sits in a column so its rows pack to the top instead of spreading out.
+    col().w_full().pb(S8).child(shelf).scroll(ScrollSpec { stick_bottom: false }).grow(1.0).min_h(0.0)
 }
 
 /// The open folder's cards, or everything the search matches.
 fn sheet(s: &State, ink: &Ink) -> El {
     let shown = s.visible();
     if shown.is_empty() {
-        let message = if !s.search.text.trim().is_empty() { "No links match that search." } else { "This folder is empty. Save a link while it's open to add one." };
+        let message = if !s.search.text.trim().is_empty() { "Nothing matches." } else { "Empty. Print a card while this folder is open." };
         return empty(message, ink);
     }
-    let mut sheet = row().key("sheet").w_full().flex_wrap().justify_center().gap(20.0).py(4.0);
+    let mut sheet = row().key("sheet").w_full().flex_wrap().gap(S6).pb(S8);
     for &(n, link) in &shown {
         sheet = sheet.child(card::card(link, n, s.links.len(), s.hot == Some(link.id), ink, &ACTIONS));
     }
-    sheet.scroll(ScrollSpec { stick_bottom: false }).grow(1.0).min_h(0.0)
+    col().w_full().child(sheet).scroll(ScrollSpec { stick_bottom: false }).grow(1.0).min_h(0.0)
 }
 
 const FOLDER_ACTIONS: folder::Actions<State> = folder::Actions {
@@ -538,8 +531,8 @@ fn main() {
         ],
         on_key: Some(on_key),
         poll: Some(poll),
-        min_size: Some((520.0, 520.0)),
-        ..AppSpec::new("Links", (1000.0, 920.0), init, view)
+        min_size: Some((1000.0, 640.0)),
+        ..AppSpec::new("Links", (1240.0, 800.0), init, view)
     });
 }
 

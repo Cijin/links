@@ -7,10 +7,10 @@ use rune::{Color, El, Spring, TextStyle, col, el, row, spacer, text};
 use crate::card::{self, Ink};
 use crate::store::{Category, Link};
 
-const FW: f32 = 138.0;
+const FW: f32 = 130.0;
 const FH: f32 = 180.0;
 /// The folder plus the room its cards fan into.
-const AREA_W: f32 = 220.0;
+const AREA_W: f32 = 192.0;
 const AREA_H: f32 = 204.0;
 const TOP: f32 = 12.0;
 const RADIUS: f32 = 14.0;
@@ -54,7 +54,7 @@ pub fn folder<S: 'static>(c: Option<Category>, links: &[&Link], hovered: bool, i
     for (k, link) in shown.iter().enumerate().rev() {
         let k = k as f32;
         let (x, y, turn) = if hovered {
-            (FW - 4.0 - 34.0 * k, TOP + 8.0 + 5.0 * k, 0.05 - 0.05 * k)
+            (AREA_W - card::MINI.0 - 4.0 - 30.0 * k, TOP + 8.0 + 5.0 * k, 0.05 - 0.05 * k)
         } else {
             (FW - 50.0 - 12.0 * k, TOP + 16.0 + 6.0 * k, 0.04 + 0.05 * k)
         };

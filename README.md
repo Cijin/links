@@ -16,12 +16,12 @@ Rust comes from Homebrew's `rustup`, which is keg-only. Put it on your PATH:
 
 ## Use
 
-- New cards come out of the little printer. Each character you type feeds the card up, and backspace rolls it back. Paste a link (⌘V anywhere drops it into the form), add a title if you like, and press Return or Save: the card rolls out, then flies into its folder.
-- Pick **VM**, **Design** or **Content** next to the title field before saving. The choice stays picked for the next link, and clicking it again clears it.
+- New cards come out of the printer on the left. Type the link straight onto the card in it (⌘V anywhere drops a link there) and add a note if you like. Each character feeds the card up, and backspace rolls it back. Pick a category with the keys on the printer, then press Return or **Print**: the card rolls out and flies into its folder.
+- The category keys (**VM**, **Design**, **Content**) stay lit for the next card; press a lit key again to clear it.
 - Links live in folders: **VM**, **Design**, **Content**, and **Unsorted** (shown while anything is uncategorized). Each has a pixel icon. Hover a folder to fan out its newest cards; click it to open it. "← Folders" or Esc goes back. A link saved while a folder is open goes into that folder.
 - Typing in the search field searches every folder from the shelf, or just the open one.
 - Click the tag on a card to change its category (none → VM → Design → Content → none).
-- Click a card to open it in your browser. "Remove" deletes it: the card flies into the shredder in the bottom-right corner and comes out as strips.
+- Click a card to open it in your browser. "Shred" deletes it: the card flies into the shredder in the bottom-right corner and comes out as strips.
 - ⌘F searches, ⌘L / ⌘N goes back to the link field, ⌘Q quits.
 
 Links are stored in `~/Library/Application Support/Links/links.json`. Set `LINKS_FILE` to use another file.
